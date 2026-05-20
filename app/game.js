@@ -2,6 +2,138 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 /* ═══════════════════════════════════════════════════════
+   AUDIO — Sound effects via Web Audio API
+   ═══════════════════════════════════════════════════════ */
+let _audioCtx = null;
+function getAudioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_audioCtx.state === "suspended") _audioCtx.resume();
+  return _audioCtx;
+}
+
+/** Correct answer: C-E-G major chord chime (sine, 0.2 gain, 0.3s) */
+function playCorrectSound() {
+  try {
+    const ctx = getAudioCtx();
+    const freqs = [523.25, 659.25, 783.99]; // C5, E5, G5
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + i * 0.05);
+      osc.stop(ctx.currentTime + 0.35);
+    });
+  } catch (e) { /* audio not supported */ }
+}
+
+/** Wrong answer: square wave 150Hz->100Hz pitch drop (0.2 gain, 0.2s) */
+function playWrongSound() {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(150, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(100, ctx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.25);
+  } catch (e) { /* audio not supported */ }
+}
+
+/** TTS — speak English word using Web Speech API */
+function speakEnglish(text) {
+  try {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = "en-US";
+    utter.rate = 0.85;
+    utter.pitch = 1.1;
+    // Try to pick an English voice
+    const voices = window.speechSynthesis.getVoices();
+    const enVoice = voices.find(v => v.lang.startsWith("en"));
+    if (enVoice) utter.voice = enVoice;
+    window.speechSynthesis.speak(utter);
+  } catch (e) { /* TTS not supported */ }
+}
+
+/* ═══════════════════════════════════════════════════════
+   LOCAL STORAGE — persistence helpers
+   ═══════════════════════════════════════════════════════ */
+const LS_KEY_SCORES = "phonics-battle-scores";
+const LS_KEY_WRONG = "phonics-battle-wrong-answers";
+
+function loadScores() {
+  try {
+    const raw = localStorage.getItem(LS_KEY_SCORES);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveScore(stageId, mode, data) {
+  try {
+    const scores = loadScores();
+    const key = `stage${stageId}_${mode}`;
+    const prev = scores[key];
+    // Keep best score and best combo
+    scores[key] = {
+      bestScore: Math.max(data.score || 0, prev?.bestScore || 0),
+      bestCombo: Math.max(data.maxCombo || 0, prev?.bestCombo || 0),
+      bestTime: prev?.bestTime ? Math.min(parseFloat(data.time) || Infinity, prev.bestTime) : parseFloat(data.time) || null,
+      plays: (prev?.plays || 0) + 1,
+      lastPlayed: Date.now(),
+    };
+    localStorage.setItem(LS_KEY_SCORES, JSON.stringify(scores));
+  } catch { /* localStorage not available */ }
+}
+
+function loadWrongAnswers() {
+  try {
+    const raw = localStorage.getItem(LS_KEY_WRONG);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveWrongAnswers(mistakes, stageId) {
+  try {
+    const existing = loadWrongAnswers();
+    const newEntries = mistakes.map(m => ({
+      en: m.word.en,
+      ja: m.word.ja,
+      stageId,
+      timestamp: Date.now(),
+    }));
+    // Keep last 200 entries, dedupe by en+stageId keeping latest
+    const merged = [...newEntries, ...existing];
+    const seen = new Set();
+    const deduped = merged.filter(e => {
+      const key = `${e.en}_${e.stageId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 200);
+    localStorage.setItem(LS_KEY_WRONG, JSON.stringify(deduped));
+  } catch { /* localStorage not available */ }
+}
+
+function getStageStats(stageId) {
+  const scores = loadScores();
+  return {
+    solo: scores[`stage${stageId}_solo`] || null,
+    battle: scores[`stage${stageId}_battle`] || null,
+  };
+}
+
+/* ═══════════════════════════════════════════════════════
    WORD DATA — Japanese (with hiragana) + English
    ═══════════════════════════════════════════════════════ */
 const STAGES = [
@@ -234,11 +366,19 @@ export default function PhonicsGame() {
       {screen === "stages" && <StageSelect mode={mode} onSelect={(sid) => mode === "solo" ? startSolo(sid) : startBattle(sid)} onBack={() => setScreen("mode")} />}
       {screen === "solo" && gameState && stage && (
         <SoloGame state={gameState} setState={setGameState} stage={stage}
-          onFinish={(res) => { setResults(res); setScreen("result"); }} />
+          onFinish={(res) => {
+            saveScore(stageId, "solo", res);
+            if (res.mistakes?.length) saveWrongAnswers(res.mistakes, stageId);
+            setResults(res); setScreen("result");
+          }} />
       )}
       {screen === "battle" && battleState && stage && (
         <BattleGame state={battleState} setState={setBattleState} stage={stage}
-          onFinish={(res) => { setResults(res); setScreen("result"); }} />
+          onFinish={(res) => {
+            saveScore(stageId, "battle", { score: Math.max(res.p1Score, res.p2Score), maxCombo: Math.max(res.p1MaxCombo, res.p2MaxCombo) });
+            if (res.mistakes?.length) saveWrongAnswers(res.mistakes, stageId);
+            setResults(res); setScreen("result");
+          }} />
       )}
       {screen === "result" && results && (
         <ResultScreen results={results} mode={mode} stageId={stageId}
@@ -336,6 +476,9 @@ function ModeSelect({ onSelect, onBack }) {
    STAGE SELECT
    ═══════════════════════════════════════════════════════ */
 function StageSelect({ mode, onSelect, onBack }) {
+  const [scores, setScores] = useState({});
+  useEffect(() => { setScores(loadScores()); }, []);
+
   return (
     <div style={{
       height: "100vh", display: "flex", flexDirection: "column",
@@ -349,27 +492,37 @@ function StageSelect({ mode, onSelect, onBack }) {
           {mode === "battle" ? "⚔️ たいせん" : "📖 れんしゅう"}
         </span>
       </div>
-      {STAGES.map((s, i) => (
-        <button key={s.id} className="btn" onClick={() => onSelect(s.id)} style={{
-          padding: "14px 16px", borderRadius: 18, border: "none", cursor: "pointer",
-          background: `linear-gradient(135deg, ${STAGE_COLORS[i]}18, ${STAGE_COLORS[i]}08)`,
-          borderLeft: `4px solid ${STAGE_COLORS[i]}`,
-          display: "flex", alignItems: "center", gap: 14, textAlign: "left",
-          animation: `fadeIn 0.3s ease ${i * 0.06}s both`,
-        }}>
-          <div style={{
-            width: 42, height: 42, borderRadius: "50%",
-            background: STAGE_COLORS[i], display: "flex", alignItems: "center",
-            justifyContent: "center", fontSize: 18, fontWeight: 900, color: "#fff",
-            boxShadow: `0 3px 12px ${STAGE_COLORS[i]}44`,
-          }}>{s.id}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{s.label}: {s.sub}</div>
-            <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{s.words.length} もんだい</div>
-          </div>
-          <div style={{ fontSize: 20, color: "#333" }}>▸</div>
-        </button>
-      ))}
+      {STAGES.map((s, i) => {
+        const stat = scores[`stage${s.id}_${mode}`];
+        return (
+          <button key={s.id} className="btn" onClick={() => onSelect(s.id)} style={{
+            padding: "14px 16px", borderRadius: 18, border: "none", cursor: "pointer",
+            background: `linear-gradient(135deg, ${STAGE_COLORS[i]}18, ${STAGE_COLORS[i]}08)`,
+            borderLeft: `4px solid ${STAGE_COLORS[i]}`,
+            display: "flex", alignItems: "center", gap: 14, textAlign: "left",
+            animation: `fadeIn 0.3s ease ${i * 0.06}s both`,
+          }}>
+            <div style={{
+              width: 42, height: 42, borderRadius: "50%",
+              background: STAGE_COLORS[i], display: "flex", alignItems: "center",
+              justifyContent: "center", fontSize: 18, fontWeight: 900, color: "#fff",
+              boxShadow: `0 3px 12px ${STAGE_COLORS[i]}44`,
+            }}>{s.id}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{s.label}: {s.sub}</div>
+              <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{s.words.length} もんだい</div>
+              {stat && (
+                <div style={{ fontSize: 9, color: "#FFD93D", marginTop: 3, display: "flex", gap: 8 }}>
+                  <span>Best: {stat.bestScore}</span>
+                  {stat.bestCombo >= 2 && <span>x{stat.bestCombo}</span>}
+                  <span>{stat.plays}回</span>
+                </div>
+              )}
+            </div>
+            <div style={{ fontSize: 20, color: "#333" }}>▸</div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -406,6 +559,15 @@ function SoloGame({ state, setState, stage, onFinish }) {
     const correct = selected === q.en;
     const newCombo = correct ? state.combo + 1 : 0;
     setFeedback(correct ? "correct" : "wrong");
+
+    // Sound effects
+    if (correct) {
+      playCorrectSound();
+    } else {
+      playWrongSound();
+    }
+    // TTS — speak the correct English word
+    speakEnglish(q.en);
 
     setTimeout(() => {
       const next = state.current + 1;
@@ -565,6 +727,15 @@ function BattleGame({ state, setState, stage, onFinish }) {
 
       const newP = { ...pState };
       newP.feedback = correct ? "correct" : "wrong";
+
+      // Sound effects
+      if (correct) {
+        playCorrectSound();
+      } else {
+        playWrongSound();
+      }
+      // TTS — speak the correct English word
+      speakEnglish(q.en);
 
       if (correct) {
         newP.score = pState.score + 1;
@@ -758,6 +929,12 @@ function BattleGame({ state, setState, stage, onFinish }) {
 function ResultScreen({ results, mode, stageId, onRetry, onHome }) {
   const isBattle = results.mode === "battle";
   const winner = isBattle ? (results.p1Score > results.p2Score ? 1 : results.p2Score > results.p1Score ? 2 : 0) : null;
+  const [wrongHistory, setWrongHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    setWrongHistory(loadWrongAnswers().filter(w => w.stageId === stageId));
+  }, [stageId]);
 
   return (
     <div style={{
@@ -839,9 +1016,41 @@ function ResultScreen({ results, mode, stageId, onRetry, onHome }) {
               <span>{m.word.ja}</span>
               <span>→</span>
               <span style={{ color: "#4ECDC4", fontWeight: 800 }}>{m.word.en}</span>
+              <button onClick={() => speakEnglish(m.word.en)} style={{
+                background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 14, lineHeight: 1,
+              }}>🔊</button>
               {isBattle && <span style={{ fontSize: 9, color: "#555" }}>(P{m.player})</span>}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Wrong answer history from localStorage */}
+      {wrongHistory.length > 0 && (
+        <div style={{ width: "100%", maxWidth: 360 }}>
+          <button onClick={() => setShowHistory(!showHistory)} style={{
+            background: "none", border: "none", cursor: "pointer",
+            fontSize: 11, color: "#6C5CE7", fontWeight: 800, padding: "4px 0",
+          }}>
+            {showHistory ? "▼" : "▸"} にがてな たんご ({wrongHistory.length})
+          </button>
+          {showHistory && (
+            <div style={{
+              background: "rgba(108,92,231,0.06)", borderRadius: 12, padding: 10,
+              border: "1px solid rgba(108,92,231,0.15)", maxHeight: 120, overflow: "auto",
+            }}>
+              {wrongHistory.slice(0, 15).map((w, i) => (
+                <div key={i} style={{ fontSize: 11, color: "#777", marginBottom: 3, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>{w.ja}</span>
+                  <span style={{ color: "#555" }}>→</span>
+                  <span style={{ color: "#4ECDC4", fontWeight: 700 }}>{w.en}</span>
+                  <button onClick={() => speakEnglish(w.en)} style={{
+                    background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 12, lineHeight: 1,
+                  }}>🔊</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
