@@ -315,8 +315,10 @@ export default function PhonicsGame() {
       combo: 0,
       maxCombo: 0,
       answers: [],
+      recentResults: [], // last 5 answers for adaptive difficulty
       timeLeft: 0,
       startTime: Date.now(),
+      isReviewMode: false,
     });
     setScreen("solo");
   };
@@ -337,6 +339,23 @@ export default function PhonicsGame() {
       timer: 40,
     });
     setScreen("battle");
+  };
+
+  const startReview = (wrongWords) => {
+    const questions = shuffle(wrongWords.map(m => m.word));
+    setGameState({
+      questions,
+      current: 0,
+      score: 0,
+      combo: 0,
+      maxCombo: 0,
+      answers: [],
+      recentResults: [],
+      timeLeft: 0,
+      startTime: Date.now(),
+      isReviewMode: true,
+    });
+    setScreen("solo");
   };
 
   const goHome = () => {
@@ -365,6 +384,7 @@ export default function PhonicsGame() {
         @keyframes popIn { from { transform:scale(0.5); opacity:0 } to { transform:scale(1); opacity:1 } }
         @keyframes float { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-8px) } }
         @keyframes confettiFall { from { transform:translateY(-20px) rotate(0deg); opacity:1 } to { transform:translateY(100vh) rotate(720deg); opacity:0 } }
+        @keyframes comboMilestone { 0% { transform:scale(0); opacity:0 } 60% { transform:scale(1.1); opacity:1 } 80% { transform:scale(1); opacity:1 } 100% { transform:scale(1); opacity:0 } }
         .btn:active { transform:scale(0.95) !important; }
       `}</style>
 
@@ -408,7 +428,8 @@ export default function PhonicsGame() {
       {screen === "result" && results && (
         <ResultScreen results={results} mode={mode} stageId={stageId}
           onRetry={() => mode === "solo" ? startSolo(stageId) : startBattle(stageId)}
-          onHome={goHome} />
+          onHome={goHome}
+          onReview={startReview} />
       )}
     </div>
   );
@@ -558,18 +579,35 @@ function StageSelect({ mode, onSelect, onBack }) {
 function SoloGame({ state, setState, stage, onFinish }) {
   const [feedback, setFeedback] = useState(null);
   const [timeLeft, setTimeLeft] = useState(15);
+  const [comboMilestone, setComboMilestone] = useState(null);
   const timerRef = useRef(null);
+  const comboTimerRef = useRef(null);
 
   const q = state.questions[state.current];
   const choices = useRef(pickChoices(q, stage.words));
 
+  // Adaptive difficulty: compute time limit based on last 5 answers
+  const getAdaptiveTimeLimit = useCallback((recentResults) => {
+    if (state.isReviewMode) return Infinity; // no timer in review mode
+    const BASE_TIME = 15;
+    if (!recentResults || recentResults.length < 5) return BASE_TIME;
+    const last5 = recentResults.slice(-5);
+    const correctCount = last5.filter(Boolean).length;
+    const accuracy = correctCount / 5;
+    if (accuracy < 0.4) return BASE_TIME + 3; // struggling: extend by 3s
+    if (accuracy > 0.8) return Math.max(5, BASE_TIME - 2); // doing great: reduce by 2s
+    return BASE_TIME;
+  }, [state.isReviewMode]);
+
   useEffect(() => {
     choices.current = pickChoices(state.questions[state.current], stage.words);
-    setTimeLeft(15);
+    const adaptiveTime = getAdaptiveTimeLimit(state.recentResults);
+    setTimeLeft(adaptiveTime);
     setFeedback(null);
   }, [state.current]);
 
   useEffect(() => {
+    if (state.isReviewMode) return; // no timer in review mode
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
         if (t <= 1) { handleAnswer(null); return 15; }
@@ -577,7 +615,10 @@ function SoloGame({ state, setState, stage, onFinish }) {
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [state.current]);
+  }, [state.current, state.isReviewMode]);
+
+  // Combo milestone labels
+  const COMBO_MILESTONES = { 3: "NICE! 🎯", 5: "GREAT! 🔥", 7: "AMAZING! ⚡", 10: "UNSTOPPABLE! 💥" };
 
   const handleAnswer = (selected) => {
     clearInterval(timerRef.current);
@@ -594,6 +635,23 @@ function SoloGame({ state, setState, stage, onFinish }) {
     // TTS — speak the correct English word
     speakEnglish(q.en);
 
+    // Combo milestone celebration
+    if (correct && COMBO_MILESTONES[newCombo]) {
+      clearTimeout(comboTimerRef.current);
+      setComboMilestone(COMBO_MILESTONES[newCombo]);
+      comboTimerRef.current = setTimeout(() => setComboMilestone(null), 1500);
+    }
+
+    // In review mode, if wrong, don't advance — let them try again
+    if (state.isReviewMode && !correct) {
+      setTimeout(() => {
+        setFeedback(null);
+      }, 800);
+      return;
+    }
+
+    const updatedRecent = [...(state.recentResults || []), correct].slice(-5);
+
     setTimeout(() => {
       const next = state.current + 1;
       if (next >= state.questions.length) {
@@ -604,6 +662,7 @@ function SoloGame({ state, setState, stage, onFinish }) {
           maxCombo: Math.max(state.maxCombo, newCombo),
           mistakes: correct ? state.answers.filter((a) => !a.correct) : [...state.answers.filter((a) => !a.correct), { word: q, selected }],
           time: ((Date.now() - state.startTime) / 1000).toFixed(1),
+          isReviewMode: state.isReviewMode,
         });
       } else {
         setState((s) => ({
@@ -613,6 +672,7 @@ function SoloGame({ state, setState, stage, onFinish }) {
           combo: newCombo,
           maxCombo: Math.max(s.maxCombo, newCombo),
           answers: [...s.answers, { word: q, selected, correct }],
+          recentResults: updatedRecent,
         }));
       }
     }, 600);
@@ -635,10 +695,35 @@ function SoloGame({ state, setState, stage, onFinish }) {
       <div style={{ height: 4, background: "#111", margin: "0 16px", borderRadius: 2 }}>
         <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg, #4ECDC4, #FFD93D)", borderRadius: 2, transition: "width 0.3s" }} />
       </div>
-      {/* Timer */}
-      <div style={{ height: 3, background: "#111", margin: "4px 16px 0", borderRadius: 2 }}>
-        <div style={{ height: "100%", width: `${(timeLeft / 15) * 100}%`, background: timeLeft <= 5 ? "#FF6B6B" : "#6C5CE7", borderRadius: 2, transition: "width 1s linear" }} />
-      </div>
+      {/* Timer (hidden in review mode) */}
+      {!state.isReviewMode && (
+        <div style={{ height: 3, background: "#111", margin: "4px 16px 0", borderRadius: 2 }}>
+          <div style={{ height: "100%", width: `${(timeLeft / getAdaptiveTimeLimit(state.recentResults)) * 100}%`, background: timeLeft <= 5 ? "#FF6B6B" : "#6C5CE7", borderRadius: 2, transition: "width 1s linear" }} />
+        </div>
+      )}
+      {state.isReviewMode && (
+        <div style={{ textAlign: "center", fontSize: 10, color: "#6C5CE7", fontWeight: 700, marginTop: 4 }}>
+          復習モード — タイマーなし・何度でもチャレンジ
+        </div>
+      )}
+
+      {/* Combo milestone overlay */}
+      {comboMilestone && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 999, pointerEvents: "none",
+        }}>
+          <div style={{
+            fontSize: 48, fontWeight: 900, color: "#FFD93D",
+            textShadow: "0 0 40px rgba(255,217,61,0.5), 0 4px 20px rgba(0,0,0,0.5)",
+            animation: "comboMilestone 1.5s ease-out forwards",
+            textAlign: "center", lineHeight: 1.3,
+          }}>
+            {comboMilestone}
+          </div>
+        </div>
+      )}
 
       {/* Question area */}
       <div style={{
@@ -951,7 +1036,7 @@ function BattleGame({ state, setState, stage, onFinish }) {
 /* ═══════════════════════════════════════════════════════
    RESULT SCREEN
    ═══════════════════════════════════════════════════════ */
-function ResultScreen({ results, mode, stageId, onRetry, onHome }) {
+function ResultScreen({ results, mode, stageId, onRetry, onHome, onReview }) {
   const isBattle = results.mode === "battle";
   const winner = isBattle ? (results.p1Score > results.p2Score ? 1 : results.p2Score > results.p1Score ? 2 : 0) : null;
   const [wrongHistory, setWrongHistory] = useState([]);
@@ -1022,6 +1107,23 @@ function ResultScreen({ results, mode, stageId, onRetry, onHome }) {
               <span key={i} style={{ fontSize: 24, opacity: results.score / results.total >= (i + 1) / 3 ? 1 : 0.2 }}>★</span>
             ))}
           </div>
+          {/* Near-miss / perfect feedback */}
+          {!results.isReviewMode && results.score === results.total && (
+            <div style={{
+              fontSize: 28, fontWeight: 900, marginTop: 8, textAlign: "center",
+              background: "linear-gradient(135deg, #FFD93D, #4ECDC4)",
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+              animation: "popIn 0.5s ease",
+            }}>PERFECT! 💎</div>
+          )}
+          {!results.isReviewMode && results.score < results.total && results.score / results.total >= 0.8 && (
+            <div style={{
+              fontSize: 14, fontWeight: 800, marginTop: 8, color: "#FFD93D",
+              textAlign: "center", animation: "fadeIn 0.5s ease",
+            }}>
+              あと{results.total - results.score}問でパーフェクト！
+            </div>
+          )}
         </>
       )}
 
@@ -1077,6 +1179,16 @@ function ResultScreen({ results, mode, stageId, onRetry, onHome }) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Review mode button */}
+      {results.mistakes && results.mistakes.length > 0 && !results.isReviewMode && onReview && (
+        <button className="btn" onClick={() => onReview(results.mistakes)} style={{
+          width: "100%", maxWidth: 360, padding: "14px 0", borderRadius: 50,
+          border: "2px solid #6C5CE7", background: "rgba(108,92,231,0.1)",
+          color: "#6C5CE7", fontWeight: 900, fontSize: 14, cursor: "pointer",
+          marginTop: 8, animation: "fadeIn 0.5s ease 0.3s both",
+        }}>🔄 苦手を復習</button>
       )}
 
       {/* Buttons */}
