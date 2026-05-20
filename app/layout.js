@@ -14,6 +14,7 @@ export default function RootLayout({ children }) {
         <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet" />
       </head>
       <body style={{ margin: 0, padding: 0, overflow: 'hidden' }}>
+        <script src="https://cdn.jsdelivr.net/gh/winniek75/wise-xp-sdk@main/wise-xp.js"></script>
         {children}
       </body>
     </html>

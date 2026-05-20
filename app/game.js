@@ -294,6 +294,13 @@ export default function PhonicsGame() {
   const [battleState, setBattleState] = useState(null);
   const [results, setResults] = useState(null);
 
+  // Initialize WiseXP SDK
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.WiseXP) {
+      window.WiseXP.init('phonics-battle');
+    }
+  }, []);
+
   const stage = STAGES.find((s) => s.id === stageId);
 
   /* ── Solo game logic ── */
@@ -369,6 +376,15 @@ export default function PhonicsGame() {
           onFinish={(res) => {
             saveScore(stageId, "solo", res);
             if (res.mistakes?.length) saveWrongAnswers(res.mistakes, stageId);
+            // Report to WiseXP
+            if (window.WiseXP) {
+              window.WiseXP.reportGame({ score: res.score, correct: res.score, total: res.total, maxCombo: res.maxCombo, grade: 0 });
+              if (res.mistakes) {
+                res.mistakes.forEach((m) => {
+                  window.WiseXP.reportWrong({ question: m.word?.ja ?? '', correct: m.word?.en ?? '', playerAnswer: m.selected ?? '' });
+                });
+              }
+            }
             setResults(res); setScreen("result");
           }} />
       )}
@@ -377,6 +393,15 @@ export default function PhonicsGame() {
           onFinish={(res) => {
             saveScore(stageId, "battle", { score: Math.max(res.p1Score, res.p2Score), maxCombo: Math.max(res.p1MaxCombo, res.p2MaxCombo) });
             if (res.mistakes?.length) saveWrongAnswers(res.mistakes, stageId);
+            // Report to WiseXP
+            if (window.WiseXP) {
+              window.WiseXP.reportGame({ score: Math.max(res.p1Score, res.p2Score), correct: Math.max(res.p1Score, res.p2Score), total: res.p1Answered + res.p2Answered, maxCombo: Math.max(res.p1MaxCombo, res.p2MaxCombo), grade: 0 });
+              if (res.mistakes) {
+                res.mistakes.forEach((m) => {
+                  window.WiseXP.reportWrong({ question: m.word?.ja ?? '', correct: m.word?.en ?? '', playerAnswer: m.selected ?? '' });
+                });
+              }
+            }
             setResults(res); setScreen("result");
           }} />
       )}
