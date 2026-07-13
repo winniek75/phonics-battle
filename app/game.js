@@ -405,6 +405,15 @@ export default function PhonicsGame() {
                 });
               }
             }
+            // → MoWISE portal へスコア送信 (WiseGame Bridge)
+            try {
+              const acc = res.total > 0 ? Math.round((res.score / res.total) * 100) : 0;
+              window.WiseGame && window.WiseGame.reportComplete({
+                score: res.score, maxScore: res.total, accuracy: acc,
+                metadata: { mode: 'solo', stage: stageId, maxCombo: res.maxCombo,
+                  wrongAnswers: (res.mistakes || []).slice(0, 20).map(m => ({ en: m.word?.en, ja: m.word?.ja, selected: m.selected })) }
+              });
+            } catch(e) {}
             setResults(res); setScreen("result");
           }} />
       )}
@@ -422,6 +431,16 @@ export default function PhonicsGame() {
                 });
               }
             }
+            // → MoWISE portal へスコア送信 (WiseGame Bridge)
+            try {
+              const best = Math.max(res.p1Score, res.p2Score);
+              const answered = (res.p1Answered || 0) + (res.p2Answered || 0);
+              window.WiseGame && window.WiseGame.reportComplete({
+                score: best, maxScore: Math.max(best, answered),
+                accuracy: answered > 0 ? Math.round((best / answered) * 100) : 0,
+                metadata: { mode: 'battle', stage: stageId }
+              });
+            } catch(e) {}
             setResults(res); setScreen("result");
           }} />
       )}

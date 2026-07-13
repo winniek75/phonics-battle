@@ -15,6 +15,8 @@ export default function RootLayout({ children }) {
       </head>
       <body style={{ margin: 0, padding: 0, overflow: 'hidden' }}>
         <script src="https://cdn.jsdelivr.net/gh/winniek75/wise-xp-sdk@main/wise-xp.js"></script>
+        <script src="/wise-game-bridge.js"></script>
+        <script dangerouslySetInnerHTML={{ __html: 'window.addEventListener("DOMContentLoaded",function(){window.WiseGame&&window.WiseGame.init({gameId:"phonics-battle"})});' }} />
         {children}
       </body>
     </html>
