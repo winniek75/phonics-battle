@@ -411,7 +411,7 @@ export default function PhonicsGame() {
               window.WiseGame && window.WiseGame.reportComplete({
                 score: res.score, maxScore: res.total, accuracy: acc,
                 metadata: { mode: 'solo', stage: stageId, maxCombo: res.maxCombo,
-                  wrongAnswers: (res.mistakes || []).slice(0, 20).map(m => ({ en: m.word?.en, ja: m.word?.ja, selected: m.selected })) }
+                  wrongAnswers: (res.mistakes || []).slice(0, 20).map(m => ({ q: m.word?.ja ?? '', correct: m.word?.en ?? '', chosen: m.selected ?? '', tag: 'sight_word' })) }
               });
             } catch(e) {}
             setResults(res); setScreen("result");
@@ -438,7 +438,8 @@ export default function PhonicsGame() {
               window.WiseGame && window.WiseGame.reportComplete({
                 score: best, maxScore: Math.max(best, answered),
                 accuracy: answered > 0 ? Math.round((best / answered) * 100) : 0,
-                metadata: { mode: 'battle', stage: stageId }
+                metadata: { mode: 'battle', stage: stageId,
+                  wrongAnswers: (res.mistakes || []).slice(0, 20).map(m => ({ q: m.word?.ja ?? '', correct: m.word?.en ?? '', chosen: m.selected ?? '', tag: 'sight_word' })) }
               });
             } catch(e) {}
             setResults(res); setScreen("result");
