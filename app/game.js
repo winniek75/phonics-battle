@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 
 /* ═══════════════════════════════════════════════════════
    AUDIO — Sound effects via Web Audio API
@@ -136,129 +136,132 @@ function getStageStats(stageId) {
 /* ═══════════════════════════════════════════════════════
    WORD DATA — Japanese (with hiragana) + English
    ═══════════════════════════════════════════════════════ */
+// ja: もんだいに出す日本語（学習記録にもこの文字列を送る）
+// em: 意味をはっきりさせるための絵文字ヒント（画面表示のみ）
+const W = (en, ja, em) => (em ? { en, ja, em } : { en, ja });
 const STAGES = [
   {
-    id: 1, label: "Stage 1", sub: "s, a, t, i, p, n",
+    id: 1, label: "Stage 1", sub: "s, a, t, i, p, n のたんご", kind: "sound",
     words: [
-      { en: "sat", ja: "すわった" }, { en: "sit", ja: "すわる" },
-      { en: "pin", ja: "ピン" }, { en: "pan", ja: "フライパン" },
-      { en: "tap", ja: "じゃぐち" }, { en: "tip", ja: "さき" },
-      { en: "tin", ja: "かん" }, { en: "nap", ja: "ひるね" },
-      { en: "sip", ja: "すする" }, { en: "pat", ja: "なでる" },
-      { en: "ant", ja: "アリ" }, { en: "pit", ja: "あな" },
+      W("sat", "すわった", "🪑"), W("sit", "すわる", "🪑"),
+      W("pin", "ピン（とめるもの）", "📌"), W("pan", "フライパン", "🍳"),
+      W("tap", "すいどうの じゃぐち", "🚰"), W("tip", "えんぴつの さき（先）", "✏️"),
+      W("tin", "かんづめの かん（缶）", "🥫"), W("nap", "ひるね", "😴"),
+      W("sip", "ちょっとずつ のむ", "🥤"), W("pat", "やさしく なでる", "🤚"),
+      W("ant", "アリ", "🐜"), W("pit", "じめんの あな（穴）", "🕳️"),
     ],
   },
   {
-    id: 2, label: "Stage 2", sub: "c/k, e, h, r, m, d",
+    id: 2, label: "Stage 2", sub: "c/k, e, h, r, m, d のたんご", kind: "sound",
     words: [
-      { en: "cat", ja: "ねこ" }, { en: "hat", ja: "ぼうし" },
-      { en: "rat", ja: "ねずみ" }, { en: "hen", ja: "めんどり" },
-      { en: "red", ja: "あかい" }, { en: "map", ja: "ちず" },
-      { en: "mat", ja: "マット" }, { en: "man", ja: "おとこのひと" },
-      { en: "kid", ja: "こども" }, { en: "dam", ja: "ダム" },
-      { en: "met", ja: "あった" }, { en: "den", ja: "すあな" },
-      { en: "kit", ja: "どうぐ" }, { en: "rim", ja: "ふち" },
+      W("cat", "ねこ", "🐱"), W("hat", "ぼうし", "👒"),
+      W("rat", "ねずみ", "🐀"), W("hen", "めんどり", "🐔"),
+      W("red", "あかい", "🔴"), W("map", "ちず", "🗺️"),
+      W("mat", "マット（しきもの）"), W("man", "おとこのひと", "👨"),
+      W("kid", "こども", "🧒"), W("dam", "ダム（かわの みずを ためる）"),
+      W("met", "ひとに あった（会った）", "🤝"), W("den", "どうぶつの すあな", "🦊"),
+      W("kit", "どうぐの セット", "🧰"), W("rim", "コップの ふち", "🥛"),
     ],
   },
   {
-    id: 3, label: "Stage 3", sub: "g, o, u, l, f, b",
+    id: 3, label: "Stage 3", sub: "g, o, u, l, f, b のたんご", kind: "sound",
     words: [
-      { en: "dog", ja: "いぬ" }, { en: "log", ja: "まるた" },
-      { en: "fog", ja: "きり" }, { en: "fun", ja: "たのしい" },
-      { en: "sun", ja: "たいよう" }, { en: "bug", ja: "むし" },
-      { en: "mug", ja: "マグカップ" }, { en: "hug", ja: "だきしめる" },
-      { en: "bus", ja: "バス" }, { en: "bed", ja: "ベッド" },
-      { en: "big", ja: "おおきい" }, { en: "bat", ja: "コウモリ" },
-      { en: "box", ja: "はこ" }, { en: "fox", ja: "キツネ" },
-      { en: "leg", ja: "あし" }, { en: "lip", ja: "くちびる" },
+      W("dog", "いぬ", "🐶"), W("log", "まるた（きの みき）", "🪵"),
+      W("fog", "きり（霧）", "🌫️"), W("fun", "たのしい", "😆"),
+      W("sun", "たいよう", "☀️"), W("bug", "むし（虫）", "🐛"),
+      W("mug", "マグカップ", "☕"), W("hug", "だきしめる", "🤗"),
+      W("bus", "バス", "🚌"), W("bed", "ベッド", "🛏️"),
+      W("big", "おおきい", "🐘"), W("bat", "コウモリ", "🦇"),
+      W("box", "はこ", "📦"), W("fox", "キツネ", "🦊"),
+      W("leg", "あし（足）", "🦵"), W("lip", "くちびる", "👄"),
     ],
   },
   {
-    id: 4, label: "Stage 4", sub: "ai, j, oa, ie, ee, or",
+    id: 4, label: "Stage 4", sub: "ai, j, oa, ie, ee, or のたんご", kind: "sound",
     words: [
-      { en: "rain", ja: "あめ" }, { en: "tail", ja: "しっぽ" },
-      { en: "mail", ja: "てがみ" }, { en: "nail", ja: "くぎ" },
-      { en: "jam", ja: "ジャム" }, { en: "jet", ja: "ジェットき" },
-      { en: "boat", ja: "ボート" }, { en: "coat", ja: "コート" },
-      { en: "road", ja: "みち" }, { en: "pie", ja: "パイ" },
-      { en: "tie", ja: "ネクタイ" }, { en: "bee", ja: "ハチ" },
-      { en: "tree", ja: "き" }, { en: "fork", ja: "フォーク" },
-      { en: "corn", ja: "とうもろこし" },
+      W("rain", "あめ（雨）", "☔"), W("tail", "しっぽ", "🐕"),
+      W("mail", "てがみ", "✉️"), W("nail", "くぎ（釘）", "🔨"),
+      W("jam", "ジャム", "🍓"), W("jet", "ジェットき", "✈️"),
+      W("boat", "ボート", "🚣"), W("coat", "コート", "🧥"),
+      W("road", "みち（道）", "🛣️"), W("pie", "パイ", "🥧"),
+      W("tie", "ネクタイ", "👔"), W("bee", "ハチ", "🐝"),
+      W("tree", "き（木）", "🌳"), W("fork", "フォーク", "🍴"),
+      W("corn", "とうもろこし", "🌽"),
     ],
   },
   {
-    id: 5, label: "Stage 5", sub: "どうし (Verbs)",
+    id: 5, label: "Stage 5", sub: "うごきの ことば（どうし）", kind: "type",
     words: [
-      { en: "eat", ja: "たべる" }, { en: "drink", ja: "のむ" },
-      { en: "run", ja: "はしる" }, { en: "walk", ja: "あるく" },
-      { en: "swim", ja: "およぐ" }, { en: "jump", ja: "ジャンプする" },
-      { en: "sit", ja: "すわる" }, { en: "stand", ja: "たつ" },
-      { en: "sleep", ja: "ねむる" }, { en: "stop", ja: "とまる" },
-      { en: "wash", ja: "あらう" }, { en: "cook", ja: "りょうりする" },
-      { en: "open", ja: "あける" }, { en: "close", ja: "しめる" },
-      { en: "go", ja: "いく" }, { en: "come", ja: "くる" },
-      { en: "see", ja: "みる" }, { en: "look", ja: "みる（よく）" },
-      { en: "read", ja: "よむ" }, { en: "write", ja: "かく" },
-      { en: "draw", ja: "えをかく" }, { en: "sing", ja: "うたう" },
-      { en: "speak", ja: "はなす" }, { en: "listen", ja: "きく" },
-      { en: "play", ja: "あそぶ" }, { en: "study", ja: "べんきょうする" },
-      { en: "make", ja: "つくる" }, { en: "have", ja: "もっている" },
-      { en: "do", ja: "する" }, { en: "like", ja: "すき" },
-      { en: "want", ja: "ほしい" }, { en: "know", ja: "しっている" },
-      { en: "think", ja: "かんがえる" }, { en: "help", ja: "たすける" },
-      { en: "give", ja: "あげる" }, { en: "take", ja: "とる" },
-      { en: "buy", ja: "かう" }, { en: "use", ja: "つかう" },
-      { en: "get", ja: "てにいれる" }, { en: "meet", ja: "あう" },
-      { en: "live", ja: "すむ" }, { en: "work", ja: "はたらく" },
-      { en: "start", ja: "はじめる" }, { en: "try", ja: "やってみる" },
-      { en: "enjoy", ja: "たのしむ" }, { en: "wait", ja: "まつ" },
-      { en: "teach", ja: "おしえる" }, { en: "fly", ja: "とぶ" },
-      { en: "ride", ja: "のる" }, { en: "watch", ja: "みる（テレビ）" },
-      { en: "find", ja: "みつける" }, { en: "call", ja: "でんわする" },
-      { en: "ask", ja: "たずねる" }, { en: "show", ja: "みせる" },
-      { en: "clean", ja: "そうじする" }, { en: "cut", ja: "きる" },
-      { en: "rain", ja: "あめがふる" }, { en: "snow", ja: "ゆきがふる" },
+      W("eat", "たべる", "🍙"), W("drink", "のむ", "🥤"),
+      W("run", "はしる", "🏃"), W("walk", "あるく", "🚶"),
+      W("swim", "およぐ", "🏊"), W("jump", "ジャンプする"),
+      W("sit", "すわる", "🪑"), W("stand", "たつ（立つ）", "🧍"),
+      W("sleep", "ねむる", "😴"), W("stop", "とまる（止まる）", "🛑"),
+      W("wash", "あらう", "🧼"), W("cook", "りょうりする", "🍳"),
+      W("open", "あける（開ける）", "🚪"), W("close", "しめる（閉める）", "🚪"),
+      W("go", "いく（行く）", "➡️"), W("come", "くる（来る）", "⬅️"),
+      W("see", "みる・みえる", "👀"), W("look", "よく みる", "🔍"),
+      W("read", "よむ", "📖"), W("write", "じを かく（書く）", "✏️"),
+      W("draw", "えを かく（描く）", "🎨"), W("sing", "うたう", "🎤"),
+      W("speak", "はなす（話す）", "🗣️"), W("listen", "きく（聞く）", "👂"),
+      W("play", "あそぶ", "🧸"), W("study", "べんきょうする", "📚"),
+      W("make", "つくる", "🛠️"), W("have", "もっている"),
+      W("do", "する"), W("like", "すき", "❤️"),
+      W("want", "ほしい"), W("know", "しっている"),
+      W("think", "かんがえる", "🤔"), W("help", "たすける", "🤝"),
+      W("give", "あげる（わたす）", "🎁"), W("take", "てに とる（取る）"),
+      W("buy", "かう（買う）", "🛒"), W("use", "つかう"),
+      W("get", "てに いれる"), W("meet", "ひとに あう（会う）", "🤝"),
+      W("live", "すむ（住む）", "🏠"), W("work", "はたらく", "💼"),
+      W("start", "はじめる"), W("try", "やってみる"),
+      W("enjoy", "たのしむ", "😆"), W("wait", "まつ（待つ）", "⏳"),
+      W("teach", "おしえる", "🧑‍🏫"), W("fly", "そらを とぶ（飛ぶ）", "🕊️"),
+      W("ride", "のる（乗る）", "🚲"), W("watch", "テレビなどを みる", "📺"),
+      W("find", "みつける", "🔎"), W("call", "でんわする", "📞"),
+      W("ask", "たずねる（きく）", "❓"), W("show", "みせる"),
+      W("clean", "そうじする", "🧹"), W("cut", "きる（切る）", "✂️"),
+      W("rain", "あめが ふる", "☔"), W("snow", "ゆきが ふる", "❄️"),
     ],
   },
   {
-    id: 6, label: "Stage 6", sub: "けいようし (Adjectives)",
+    id: 6, label: "Stage 6", sub: "ようすの ことば（けいようし）", kind: "type",
     words: [
-      { en: "big", ja: "おおきい" }, { en: "small", ja: "ちいさい" },
-      { en: "long", ja: "ながい" }, { en: "short", ja: "みじかい" },
-      { en: "tall", ja: "せがたかい" }, { en: "new", ja: "あたらしい" },
-      { en: "old", ja: "ふるい" }, { en: "hot", ja: "あつい" },
-      { en: "cold", ja: "さむい" }, { en: "fast", ja: "はやい" },
-      { en: "slow", ja: "おそい" }, { en: "good", ja: "よい" },
-      { en: "bad", ja: "わるい" }, { en: "happy", ja: "しあわせ" },
-      { en: "sad", ja: "かなしい" }, { en: "angry", ja: "おこっている" },
-      { en: "tired", ja: "つかれた" }, { en: "hungry", ja: "おなかすいた" },
-      { en: "kind", ja: "やさしい" }, { en: "nice", ja: "すてき" },
-      { en: "beautiful", ja: "うつくしい" }, { en: "cute", ja: "かわいい" },
-      { en: "red", ja: "あかい" }, { en: "blue", ja: "あおい" },
-      { en: "yellow", ja: "きいろい" }, { en: "green", ja: "みどりの" },
-      { en: "white", ja: "しろい" }, { en: "black", ja: "くろい" },
-      { en: "pink", ja: "ピンクの" }, { en: "brown", ja: "ちゃいろの" },
-      { en: "purple", ja: "むらさきの" }, { en: "orange", ja: "オレンジの" },
-      { en: "sunny", ja: "はれ" }, { en: "cloudy", ja: "くもり" },
-      { en: "rainy", ja: "あめ" }, { en: "windy", ja: "かぜがつよい" },
-      { en: "easy", ja: "かんたん" }, { en: "hard", ja: "むずかしい" },
-      { en: "busy", ja: "いそがしい" }, { en: "great", ja: "すばらしい" },
-      { en: "many", ja: "たくさんの" }, { en: "important", ja: "たいせつ" },
-      { en: "popular", ja: "にんき" }, { en: "favorite", ja: "おきにいり" },
-      { en: "ready", ja: "じゅんびOK" }, { en: "sorry", ja: "ごめんなさい" },
-      { en: "right", ja: "ただしい" }, { en: "wrong", ja: "まちがい" },
-      { en: "sick", ja: "びょうき" }, { en: "special", ja: "とくべつ" },
+      W("big", "おおきい", "🐘"), W("small", "ちいさい", "🐭"),
+      W("long", "ながい", "📏"), W("short", "みじかい"),
+      W("tall", "せが たかい", "🦒"), W("new", "あたらしい", "✨"),
+      W("old", "ふるい"), W("hot", "あつい（暑い・熱い）", "🥵"),
+      W("cold", "さむい・つめたい", "🥶"), W("fast", "はやい（速い）", "🐇"),
+      W("slow", "おそい", "🐢"), W("good", "よい", "👍"),
+      W("bad", "わるい", "👎"), W("happy", "しあわせ・うれしい", "😊"),
+      W("sad", "かなしい", "😢"), W("angry", "おこっている", "😠"),
+      W("tired", "つかれた", "😩"), W("hungry", "おなかが すいた", "🍽️"),
+      W("kind", "やさしい（しんせつ）", "💗"), W("nice", "すてき"),
+      W("beautiful", "うつくしい", "🌸"), W("cute", "かわいい", "🐰"),
+      W("red", "あかい", "🔴"), W("blue", "あおい", "🔵"),
+      W("yellow", "きいろい", "🟡"), W("green", "みどりの", "🟢"),
+      W("white", "しろい", "⚪"), W("black", "くろい", "⚫"),
+      W("pink", "ピンクの", "🌸"), W("brown", "ちゃいろの", "🟤"),
+      W("purple", "むらさきの", "🟣"), W("orange", "オレンジいろの", "🟠"),
+      W("sunny", "はれの（てんき）", "☀️"), W("cloudy", "くもりの（てんき）", "☁️"),
+      W("rainy", "あめの（てんき）", "☔"), W("windy", "かぜが つよい", "🌬️"),
+      W("easy", "かんたん"), W("hard", "むずかしい"),
+      W("busy", "いそがしい"), W("great", "すばらしい", "🎉"),
+      W("many", "たくさんの"), W("important", "たいせつ"),
+      W("popular", "にんきが ある"), W("favorite", "おきにいり", "⭐"),
+      W("ready", "じゅんびが できた"), W("sorry", "ごめんなさい", "🙇"),
+      W("right", "ただしい", "⭕"), W("wrong", "まちがっている", "❌"),
+      W("sick", "びょうきの", "🤒"), W("special", "とくべつ"),
     ],
   },
   {
-    id: 7, label: "Stage 7", sub: "だいめいし (Pronouns)",
+    id: 7, label: "Stage 7", sub: "ひとを さす ことば（だいめいし）", kind: "type",
     words: [
-      { en: "I", ja: "わたし" }, { en: "you", ja: "あなた" },
-      { en: "he", ja: "かれ" }, { en: "she", ja: "かのじょ" },
-      { en: "it", ja: "それ" }, { en: "we", ja: "わたしたち" },
-      { en: "they", ja: "かれら" }, { en: "me", ja: "わたしを" },
-      { en: "him", ja: "かれを" }, { en: "her", ja: "かのじょを" },
-      { en: "us", ja: "わたしたちを" }, { en: "them", ja: "かれらを" },
+      W("I", "わたしは"), W("you", "あなた"),
+      W("he", "かれは（おとこのひと）"), W("she", "かのじょは（おんなのひと）"),
+      W("it", "それ"), W("we", "わたしたちは"),
+      W("they", "かれらは"), W("me", "わたしを"),
+      W("him", "かれを"), W("her", "かのじょを"),
+      W("us", "わたしたちを"), W("them", "かれらを"),
     ],
   },
 ];
@@ -284,6 +287,52 @@ function pickChoices(correct, allWords, count = 4) {
 }
 
 /* ═══════════════════════════════════════════════════════
+   MODES / PORTAL LINK / DEEP LINK
+   mode (内部キー):
+     "practice" … れんしゅう（ひとり・じかんせいげんなし）
+     "solo"     … タイムチャレンジ（ひとり・1もん15びょう）※保存キー互換のため "solo" のまま
+     "battle"   … たいせん（2にん・40びょう）
+   ═══════════════════════════════════════════════════════ */
+const PORTAL_URL = "https://wise-english-portal.vercel.app";
+const DEFAULT_COUNT = 10;
+const MODE_INFO = {
+  practice: { emoji: "📖", title: "れんしゅう", desc: "ひとりで ゆっくり（じかんせいげん なし）", color: "#4ECDC4" },
+  solo: { emoji: "⏱️", title: "タイムチャレンジ", desc: "ひとりで 1もん15びょう", color: "#6C5CE7" },
+  battle: { emoji: "⚔️", title: "たいせん", desc: "2にんで 40びょう スピードバトル！", color: "#FF6B6B" },
+};
+
+/** URL パラメータ（ディープリンク）を読む。
+ *  ?stage=1..7（別名 group / unit） &mode=practice|challenge|battle &count=3..20 */
+function readDeepLink() {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const rawStage = p.get("stage") ?? p.get("group") ?? p.get("unit");
+    const sid = parseInt(rawStage, 10);
+    const stageId = STAGES.some((s) => s.id === sid) ? sid : null;
+    const rawMode = (p.get("mode") || "").toLowerCase();
+    const modeMap = {
+      practice: "practice", renshu: "practice", learn: "practice",
+      challenge: "solo", time: "solo", timed: "solo", solo: "solo",
+      battle: "battle", vs: "battle",
+    };
+    const mode = modeMap[rawMode] || null;
+    const n = parseInt(p.get("count"), 10);
+    const count = Number.isFinite(n) ? Math.min(20, Math.max(3, n)) : null;
+    return { stageId, mode, count };
+  } catch { return { stageId: null, mode: null, count: null }; }
+}
+
+function PortalLink({ style }) {
+  return (
+    <a href={PORTAL_URL} style={{
+      fontSize: 12, color: "#7a7aa8", fontWeight: 700, textDecoration: "none",
+      padding: "8px 14px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.08)",
+      zIndex: 1, ...style,
+    }}>🏠 学習ホームにもどる</a>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    MAIN APP
    ═══════════════════════════════════════════════════════ */
 export default function PhonicsGame() {
@@ -293,6 +342,8 @@ export default function PhonicsGame() {
   const [gameState, setGameState] = useState(null);
   const [battleState, setBattleState] = useState(null);
   const [results, setResults] = useState(null);
+  const [qCount, setQCount] = useState(DEFAULT_COUNT);
+  const [presetStage, setPresetStage] = useState(null); // URLでステージだけ指定されたとき
 
   // Initialize WiseXP SDK
   useEffect(() => {
@@ -301,12 +352,25 @@ export default function PhonicsGame() {
     }
   }, []);
 
+  // Deep link: ?stage=2&mode=practice&count=10 など
+  useEffect(() => {
+    const dl = readDeepLink();
+    if (dl.count) setQCount(dl.count);
+    if (dl.stageId && dl.mode) {
+      setStageId(dl.stageId); setMode(dl.mode); setScreen("ready");
+    } else if (dl.mode) {
+      setMode(dl.mode); setScreen("stages");
+    } else if (dl.stageId) {
+      setPresetStage(dl.stageId); setScreen("mode");
+    }
+  }, []);
+
   const stage = STAGES.find((s) => s.id === stageId);
 
-  /* ── Solo game logic ── */
-  const startSolo = (sid) => {
+  /* ── Solo game logic (practice = no timer / solo = timed) ── */
+  const startSolo = (sid, m) => {
     const s = STAGES.find((st) => st.id === sid);
-    const questions = shuffle(s.words).slice(0, Math.min(10, s.words.length));
+    const questions = shuffle(s.words).slice(0, Math.min(qCount, s.words.length));
     setStageId(sid);
     setGameState({
       questions,
@@ -316,9 +380,10 @@ export default function PhonicsGame() {
       maxCombo: 0,
       answers: [],
       recentResults: [], // last 5 answers for adaptive difficulty
-      timeLeft: 0,
       startTime: Date.now(),
       isReviewMode: false,
+      timed: m === "solo",
+      modeKey: m === "solo" ? "solo" : "practice",
     });
     setScreen("solo");
   };
@@ -331,9 +396,9 @@ export default function PhonicsGame() {
     const q1 = makeQueue(), q2 = makeQueue();
     setStageId(sid);
     setBattleState({
-      p1: { questions: q1, current: 0, score: 0, combo: 0, maxCombo: 0,
+      p1: { questions: q1, current: 0, answered: 0, score: 0, combo: 0, maxCombo: 0,
             choices: pickChoices(q1[0], s.words), feedback: null, mistakes: [] },
-      p2: { questions: q2, current: 0, score: 0, combo: 0, maxCombo: 0,
+      p2: { questions: q2, current: 0, answered: 0, score: 0, combo: 0, maxCombo: 0,
             choices: pickChoices(q2[0], s.words), feedback: null, mistakes: [] },
       phase: "playing",
       timer: 40,
@@ -341,8 +406,13 @@ export default function PhonicsGame() {
     setScreen("battle");
   };
 
+  const startGame = (sid, m) => (m === "battle" ? startBattle(sid) : startSolo(sid, m));
+
   const startReview = (wrongWords) => {
-    const questions = shuffle(wrongWords.map(m => m.word));
+    // 同じ単語が2回入らないようにする（たいせんでは P1/P2 が同じ語をまちがえることがある）
+    const seen = new Set();
+    const uniq = wrongWords.map((m) => m.word).filter((w) => (seen.has(w.en) ? false : (seen.add(w.en), true)));
+    const questions = shuffle(uniq);
     setGameState({
       questions,
       current: 0,
@@ -351,9 +421,10 @@ export default function PhonicsGame() {
       maxCombo: 0,
       answers: [],
       recentResults: [],
-      timeLeft: 0,
       startTime: Date.now(),
       isReviewMode: true,
+      timed: false,
+      modeKey: "review",
     });
     setScreen("solo");
   };
@@ -363,6 +434,7 @@ export default function PhonicsGame() {
     setGameState(null);
     setBattleState(null);
     setResults(null);
+    setPresetStage(null);
   };
 
   return (
@@ -389,29 +461,41 @@ export default function PhonicsGame() {
       `}</style>
 
       {screen === "home" && <HomeScreen onStart={() => setScreen("mode")} />}
-      {screen === "mode" && <ModeSelect onSelect={(m) => { setMode(m); setScreen("stages"); }} onBack={goHome} />}
-      {screen === "stages" && <StageSelect mode={mode} onSelect={(sid) => mode === "solo" ? startSolo(sid) : startBattle(sid)} onBack={() => setScreen("mode")} />}
+      {screen === "mode" && <ModeSelect presetStage={STAGES.find((s) => s.id === presetStage)}
+        onSelect={(m) => {
+          setMode(m);
+          if (presetStage) startGame(presetStage, m); else setScreen("stages");
+        }} onBack={goHome} />}
+      {screen === "stages" && <StageSelect mode={mode} onSelect={(sid) => startGame(sid, mode)} onBack={() => setScreen("mode")} />}
+      {screen === "ready" && stage && (
+        <ReadyScreen stage={stage} mode={mode} count={Math.min(qCount, stage.words.length)}
+          onStart={() => startGame(stageId, mode)} onBack={goHome} />
+      )}
       {screen === "solo" && gameState && stage && (
         <SoloGame state={gameState} setState={setGameState} stage={stage}
           onFinish={(res) => {
-            saveScore(stageId, "solo", res);
+            // ふくしゅう（まちがえた語のやりなおし）はベストスコアに入れない
+            if (!res.isReviewMode) saveScore(stageId, res.modeKey, res);
             if (res.mistakes?.length) saveWrongAnswers(res.mistakes, stageId);
+            // 学習記録には「えらんでまちがえた語」だけを送る（じかんぎれは別集計）
+            const wrongPicked = (res.mistakes || []).filter((m) => !m.timedOut);
             // Report to WiseXP
             if (window.WiseXP) {
-              window.WiseXP.reportGame({ score: res.score, correct: res.score, total: res.total, maxCombo: res.maxCombo, grade: 0 });
-              if (res.mistakes) {
-                res.mistakes.forEach((m) => {
+              try {
+                window.WiseXP.reportGame({ score: res.score, correct: res.score, total: res.total, maxCombo: res.maxCombo, grade: 0 });
+                wrongPicked.forEach((m) => {
                   window.WiseXP.reportWrong({ question: m.word?.ja ?? '', correct: m.word?.en ?? '', playerAnswer: m.selected ?? '' });
                 });
-              }
+              } catch (e) {}
             }
             // → MoWISE portal へスコア送信 (WiseGame Bridge)
             try {
               const acc = res.total > 0 ? Math.round((res.score / res.total) * 100) : 0;
               window.WiseGame && window.WiseGame.reportComplete({
                 score: res.score, maxScore: res.total, accuracy: acc,
-                metadata: { mode: 'solo', stage: stageId, maxCombo: res.maxCombo,
-                  wrongAnswers: (res.mistakes || []).slice(0, 20).map(m => ({ q: m.word?.ja ?? '', correct: m.word?.en ?? '', chosen: m.selected ?? '', tag: 'sight_word' })) }
+                metadata: { mode: res.modeKey, stage: stageId, maxCombo: res.maxCombo,
+                  timeouts: (res.mistakes || []).length - wrongPicked.length,
+                  wrongAnswers: wrongPicked.slice(0, 20).map(m => ({ q: m.word?.ja ?? '', correct: m.word?.en ?? '', chosen: m.selected ?? '', tag: 'sight_word' })) }
               });
             } catch(e) {}
             setResults(res); setScreen("result");
@@ -422,22 +506,25 @@ export default function PhonicsGame() {
           onFinish={(res) => {
             saveScore(stageId, "battle", { score: Math.max(res.p1Score, res.p2Score), maxCombo: Math.max(res.p1MaxCombo, res.p2MaxCombo) });
             if (res.mistakes?.length) saveWrongAnswers(res.mistakes, stageId);
+            // かったほう（どうてんなら P1）の「せいかい数 / こたえた数」をそのまま送る。
+            // 以前は「せいかい数 = かったほう」「もんだい数 = 2人のごうけい」で、正答率が実際より低く記録されていた。
+            const top = res.p2Score > res.p1Score
+              ? { score: res.p2Score, answered: res.p2Answered, combo: res.p2MaxCombo }
+              : { score: res.p1Score, answered: res.p1Answered, combo: res.p1MaxCombo };
             // Report to WiseXP
             if (window.WiseXP) {
-              window.WiseXP.reportGame({ score: Math.max(res.p1Score, res.p2Score), correct: Math.max(res.p1Score, res.p2Score), total: res.p1Answered + res.p2Answered, maxCombo: Math.max(res.p1MaxCombo, res.p2MaxCombo), grade: 0 });
-              if (res.mistakes) {
-                res.mistakes.forEach((m) => {
+              try {
+                window.WiseXP.reportGame({ score: top.score, correct: top.score, total: top.answered, maxCombo: top.combo, grade: 0 });
+                (res.mistakes || []).forEach((m) => {
                   window.WiseXP.reportWrong({ question: m.word?.ja ?? '', correct: m.word?.en ?? '', playerAnswer: m.selected ?? '' });
                 });
-              }
+              } catch (e) {}
             }
             // → MoWISE portal へスコア送信 (WiseGame Bridge)
             try {
-              const best = Math.max(res.p1Score, res.p2Score);
-              const answered = (res.p1Answered || 0) + (res.p2Answered || 0);
               window.WiseGame && window.WiseGame.reportComplete({
-                score: best, maxScore: Math.max(best, answered),
-                accuracy: answered > 0 ? Math.round((best / answered) * 100) : 0,
+                score: top.score, maxScore: top.answered,
+                accuracy: top.answered > 0 ? Math.round((top.score / top.answered) * 100) : 0,
                 metadata: { mode: 'battle', stage: stageId,
                   wrongAnswers: (res.mistakes || []).slice(0, 20).map(m => ({ q: m.word?.ja ?? '', correct: m.word?.en ?? '', chosen: m.selected ?? '', tag: 'sight_word' })) }
               });
@@ -447,7 +534,7 @@ export default function PhonicsGame() {
       )}
       {screen === "result" && results && (
         <ResultScreen results={results} mode={mode} stageId={stageId}
-          onRetry={() => mode === "solo" ? startSolo(stageId) : startBattle(stageId)}
+          onRetry={() => startGame(stageId, mode)}
           onHome={goHome}
           onReview={startReview} />
       )}
@@ -460,6 +547,13 @@ export default function PhonicsGame() {
    ═══════════════════════════════════════════════════════ */
 function HomeScreen({ onStart }) {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnop";
+  // ランダム配置はマウント後に1回だけ決める（SSRとのずれ・再描画ごとの飛びを防ぐ）
+  const [deco, setDeco] = useState([]);
+  useEffect(() => {
+    setDeco(letters.split("").map((l) => ({
+      l, size: 16 + Math.random() * 20, top: Math.random() * 100, left: Math.random() * 100, rot: -30 + Math.random() * 60,
+    })));
+  }, []);
   return (
     <div style={{
       height: "100vh", display: "flex", flexDirection: "column",
@@ -467,34 +561,37 @@ function HomeScreen({ onStart }) {
       background: "radial-gradient(ellipse at 50% 30%, #1e1245 0%, #0a0a14 70%)",
       position: "relative", overflow: "hidden",
     }}>
-      {letters.split("").map((l, i) => (
+      {deco.map((d, i) => (
         <div key={i} style={{
-          position: "absolute", fontSize: 16 + Math.random() * 20,
+          position: "absolute", fontSize: d.size,
           color: STAGE_COLORS[i % 7], opacity: 0.06,
-          top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%`,
-          fontWeight: 900, transform: `rotate(${-30 + Math.random() * 60}deg)`,
-        }}>{l}</div>
+          top: `${d.top}%`, left: `${d.left}%`,
+          fontWeight: 900, transform: `rotate(${d.rot}deg)`,
+        }}>{d.l}</div>
       ))}
       <div style={{ fontSize: 56, animation: "float 3s ease-in-out infinite", zIndex: 1 }}>🦊</div>
+      <div style={{ fontSize: 13, color: "#FFD93D", fontWeight: 800, letterSpacing: 2, zIndex: 1 }}>はじめての</div>
       <div style={{
-        fontSize: 36, fontWeight: 900, lineHeight: 1.1, textAlign: "center", zIndex: 1,
+        fontSize: 34, fontWeight: 900, lineHeight: 1.2, textAlign: "center", zIndex: 1, marginTop: -8,
         background: "linear-gradient(135deg, #FFD93D, #FF6B6B)",
         WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-      }}>PHONICS<br/>BATTLE</div>
-      <div style={{ fontSize: 11, color: "#5a5a8a", letterSpacing: 3, fontWeight: 700, zIndex: 1 }}>
-        フォニックス・バトル
+      }}>えいたんご<br/>バトル</div>
+      <div style={{ fontSize: 11, color: "#5a5a8a", letterSpacing: 2, fontWeight: 700, zIndex: 1 }}>
+        はじめての英単語バトル
       </div>
-      <div style={{ fontSize: 10, color: "#444", marginTop: 4, zIndex: 1 }}>
-        📝 かんいばん（にほんご → えいたんご）
+      <div style={{ fontSize: 12, color: "#8a8ab0", marginTop: 4, zIndex: 1, textAlign: "center", lineHeight: 1.7 }}>
+        にほんごを みて、あう えいたんごを えらぼう！<br/>
+        <span style={{ fontSize: 10, color: "#5a5a8a" }}>📖 れんしゅう ・ ⏱️ タイムチャレンジ ・ ⚔️ 2にん たいせん</span>
       </div>
       <button className="btn" onClick={onStart} style={{
-        marginTop: 28, padding: "18px 72px", border: "none", cursor: "pointer",
+        marginTop: 20, padding: "18px 72px", border: "none", cursor: "pointer",
         background: "linear-gradient(135deg, #FF6B6B, #ee5a24)",
         borderRadius: 50, color: "#fff", fontWeight: 900, fontSize: 22,
         fontFamily: "'Nunito', sans-serif", letterSpacing: 3, zIndex: 1,
         boxShadow: "0 6px 30px rgba(255,107,107,0.4), inset 0 1px 0 rgba(255,255,255,0.2)",
         animation: "pulse 2s ease-in-out infinite",
       }}>START</button>
+      <PortalLink style={{ marginTop: 12 }} />
     </div>
   );
 }
@@ -502,38 +599,87 @@ function HomeScreen({ onStart }) {
 /* ═══════════════════════════════════════════════════════
    MODE SELECT
    ═══════════════════════════════════════════════════════ */
-function ModeSelect({ onSelect, onBack }) {
+function ModeSelect({ onSelect, onBack, presetStage }) {
   return (
     <div style={{
       height: "100vh", display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center", gap: 20, padding: 24,
+      alignItems: "center", justifyContent: "center", gap: 16, padding: 24,
       background: "radial-gradient(ellipse at 50% 80%, #1e1245 0%, #0a0a14 70%)",
     }}>
       <button onClick={onBack} style={{ position: "absolute", top: 20, left: 20, background: "none", border: "none", color: "#555", fontSize: 16, cursor: "pointer" }}>◀ もどる</button>
-      <div style={{ fontSize: 22, fontWeight: 900, color: "#fff" }}>モードをえらぼう！</div>
-      {[
-        { mode: "solo", emoji: "📖", title: "れんしゅう", desc: "ひとりでチャレンジ", color: "#4ECDC4" },
-        { mode: "battle", emoji: "⚔️", title: "たいせん", desc: "2にんでスピードバトル！", color: "#FF6B6B" },
-      ].map((m) => (
-        <button key={m.mode} className="btn" onClick={() => onSelect(m.mode)} style={{
-          width: "100%", maxWidth: 360, padding: "24px 20px",
-          background: `linear-gradient(135deg, ${m.color}, ${m.color}cc)`,
-          borderRadius: 22, border: "none", cursor: "pointer",
-          display: "flex", alignItems: "center", gap: 16, textAlign: "left",
-          boxShadow: `0 6px 24px ${m.color}40`,
-        }}>
-          <span style={{ fontSize: 42 }}>{m.emoji}</span>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: "#fff" }}>{m.title}</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 3 }}>{m.desc}</div>
-          </div>
-          {m.mode === "battle" && <span style={{
-            position: "absolute", top: -6, right: 12,
-            background: "#FFD93D", color: "#0a0a14", fontSize: 10, fontWeight: 900,
-            padding: "3px 10px", borderRadius: 20, transform: "rotate(8deg)",
-          }}>2P</span>}
-        </button>
-      ))}
+      <div style={{ fontSize: 22, fontWeight: 900, color: "#fff" }}>あそびかたを えらぼう！</div>
+      {presetStage && (
+        <div style={{ fontSize: 12, color: "#FFD93D", fontWeight: 800 }}>
+          きょうは {presetStage.label}: {presetStage.sub}
+        </div>
+      )}
+      {["practice", "solo", "battle"].map((key) => {
+        const m = MODE_INFO[key];
+        return (
+          <button key={key} className="btn" onClick={() => onSelect(key)} style={{
+            width: "100%", maxWidth: 360, padding: "20px 20px", position: "relative",
+            background: `linear-gradient(135deg, ${m.color}, ${m.color}cc)`,
+            borderRadius: 22, border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 16, textAlign: "left",
+            boxShadow: `0 6px 24px ${m.color}40`,
+          }}>
+            <span style={{ fontSize: 40 }}>{m.emoji}</span>
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: "#fff" }}>{m.title}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", marginTop: 3 }}>{m.desc}</div>
+            </div>
+            {key === "practice" && <span style={{
+              position: "absolute", top: -8, right: 12,
+              background: "#fff", color: "#0a8f86", fontSize: 10, fontWeight: 900,
+              padding: "3px 10px", borderRadius: 20,
+            }}>はじめての ひとは ここから</span>}
+            {key === "battle" && <span style={{
+              position: "absolute", top: -6, right: 12,
+              background: "#FFD93D", color: "#0a0a14", fontSize: 10, fontWeight: 900,
+              padding: "3px 10px", borderRadius: 20, transform: "rotate(8deg)",
+            }}>2P</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   READY SCREEN — URLでステージとモードが指定されたとき
+   ═══════════════════════════════════════════════════════ */
+function ReadyScreen({ stage, mode, count, onStart, onBack }) {
+  const m = MODE_INFO[mode] || MODE_INFO.practice;
+  return (
+    <div style={{
+      height: "100vh", display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center", gap: 14, padding: 24,
+      background: "radial-gradient(ellipse at 50% 30%, #1e1245 0%, #0a0a14 70%)",
+    }}>
+      <div style={{ fontSize: 13, color: "#FFD93D", fontWeight: 800 }}>はじめての えいたんごバトル</div>
+      <div style={{ fontSize: 48 }}>{m.emoji}</div>
+      <div style={{ fontSize: 26, fontWeight: 900, color: m.color }}>{m.title}</div>
+      <div style={{ fontSize: 12, color: "#8a8ab0" }}>{m.desc}</div>
+      <div style={{
+        padding: "14px 22px", borderRadius: 18, textAlign: "center",
+        background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+      }}>
+        <div style={{ fontSize: 16, fontWeight: 900, color: "#fff" }}>{stage.label}</div>
+        <div style={{ fontSize: 13, color: "#aaa", marginTop: 4 }}>{stage.sub}</div>
+        <div style={{ fontSize: 12, color: "#FFD93D", marginTop: 6, fontWeight: 800 }}>
+          {mode === "battle" ? "40びょう しょうぶ" : `${count} もん`}
+        </div>
+      </div>
+      <button className="btn" onClick={onStart} style={{
+        marginTop: 10, padding: "18px 64px", border: "none", cursor: "pointer",
+        background: "linear-gradient(135deg, #FF6B6B, #ee5a24)",
+        borderRadius: 50, color: "#fff", fontWeight: 900, fontSize: 22,
+        boxShadow: "0 6px 30px rgba(255,107,107,0.4)",
+      }}>スタート！</button>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: "#777", fontSize: 13, cursor: "pointer", padding: 8 }}>
+        ほかの ステージを えらぶ
+      </button>
+      <PortalLink />
     </div>
   );
 }
@@ -544,24 +690,29 @@ function ModeSelect({ onSelect, onBack }) {
 function StageSelect({ mode, onSelect, onBack }) {
   const [scores, setScores] = useState({});
   useEffect(() => { setScores(loadScores()); }, []);
+  const m = MODE_INFO[mode] || MODE_INFO.practice;
 
   return (
     <div style={{
       height: "100vh", display: "flex", flexDirection: "column",
-      padding: 20, gap: 10, overflow: "auto",
+      padding: 20, gap: 10, overflow: "auto", boxSizing: "border-box",
       background: "radial-gradient(ellipse at 50% 0%, #0f2444 0%, #0a0a14 60%)",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", color: "#555", fontSize: 16, cursor: "pointer" }}>◀</button>
         <span style={{ fontSize: 18, fontWeight: 900 }}>ステージ</span>
-        <span style={{ fontSize: 11, color: "#555", marginLeft: "auto" }}>
-          {mode === "battle" ? "⚔️ たいせん" : "📖 れんしゅう"}
+        <span style={{ fontSize: 11, color: "#888", marginLeft: "auto" }}>
+          {m.emoji} {m.title}
         </span>
       </div>
       {STAGES.map((s, i) => {
         const stat = scores[`stage${s.id}_${mode}`];
+        const header = i === 0 ? "🔤 もじの グループべつ（みじかい たんご）"
+          : s.kind !== STAGES[i - 1].kind ? "📚 ことばの なかまべつ" : null;
         return (
-          <button key={s.id} className="btn" onClick={() => onSelect(s.id)} style={{
+          <div key={s.id} style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+          {header && <div style={{ fontSize: 11, color: "#8a8ab0", fontWeight: 800, marginTop: i === 0 ? 0 : 8 }}>{header}</div>}
+          <button className="btn" onClick={() => onSelect(s.id)} style={{
             padding: "14px 16px", borderRadius: 18, border: "none", cursor: "pointer",
             background: `linear-gradient(135deg, ${STAGE_COLORS[i]}18, ${STAGE_COLORS[i]}08)`,
             borderLeft: `4px solid ${STAGE_COLORS[i]}`,
@@ -569,24 +720,25 @@ function StageSelect({ mode, onSelect, onBack }) {
             animation: `fadeIn 0.3s ease ${i * 0.06}s both`,
           }}>
             <div style={{
-              width: 42, height: 42, borderRadius: "50%",
+              width: 42, height: 42, borderRadius: "50%", flexShrink: 0,
               background: STAGE_COLORS[i], display: "flex", alignItems: "center",
               justifyContent: "center", fontSize: 18, fontWeight: 900, color: "#fff",
               boxShadow: `0 3px 12px ${STAGE_COLORS[i]}44`,
             }}>{s.id}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>{s.label}: {s.sub}</div>
-              <div style={{ fontSize: 10, color: "#555", marginTop: 2 }}>{s.words.length} もんだい</div>
+              <div style={{ fontSize: 10, color: "#777", marginTop: 2 }}>ぜんぶで {s.words.length} たんご</div>
               {stat && (
                 <div style={{ fontSize: 9, color: "#FFD93D", marginTop: 3, display: "flex", gap: 8 }}>
                   <span>Best: {stat.bestScore}</span>
                   {stat.bestCombo >= 2 && <span>x{stat.bestCombo}</span>}
-                  <span>{stat.plays}回</span>
+                  <span>{stat.plays}かい</span>
                 </div>
               )}
             </div>
             <div style={{ fontSize: 20, color: "#333" }}>▸</div>
           </button>
+          </div>
         );
       })}
     </div>
@@ -594,93 +746,116 @@ function StageSelect({ mode, onSelect, onBack }) {
 }
 
 /* ═══════════════════════════════════════════════════════
-   SOLO GAME
+   SOLO GAME — れんしゅう（タイマーなし）/ タイムチャレンジ / ふくしゅう
    ═══════════════════════════════════════════════════════ */
+const BASE_TIME = 15;
+
 function SoloGame({ state, setState, stage, onFinish }) {
-  const [feedback, setFeedback] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(15);
+  const timed = !!state.timed && !state.isReviewMode;
+  const [feedback, setFeedback] = useState(null); // "correct" | "wrong" | "timeout"
+  const [picked, setPicked] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(BASE_TIME);
   const [comboMilestone, setComboMilestone] = useState(null);
-  const timerRef = useRef(null);
   const comboTimerRef = useRef(null);
+  const advanceTimerRef = useRef(null);
+  const lockRef = useRef(false);       // 1もんにつき こたえは1回だけ
+  const firstMissRef = useRef({});     // ふくしゅう: さいしょにまちがえた こたえ
 
   const q = state.questions[state.current];
-  const choices = useRef(pickChoices(q, stage.words));
+  const choices = useMemo(() => pickChoices(q, stage.words), [state.current, state.questions]);
 
   // Adaptive difficulty: compute time limit based on last 5 answers
-  const getAdaptiveTimeLimit = useCallback((recentResults) => {
-    if (state.isReviewMode) return Infinity; // no timer in review mode
-    const BASE_TIME = 15;
+  const getAdaptiveTimeLimit = (recentResults) => {
     if (!recentResults || recentResults.length < 5) return BASE_TIME;
-    const last5 = recentResults.slice(-5);
-    const correctCount = last5.filter(Boolean).length;
-    const accuracy = correctCount / 5;
+    const accuracy = recentResults.slice(-5).filter(Boolean).length / 5;
     if (accuracy < 0.4) return BASE_TIME + 3; // struggling: extend by 3s
     if (accuracy > 0.8) return Math.max(5, BASE_TIME - 2); // doing great: reduce by 2s
     return BASE_TIME;
-  }, [state.isReviewMode]);
+  };
+  const timeLimit = getAdaptiveTimeLimit(state.recentResults);
 
+  // 新しいもんだいになったらリセット
   useEffect(() => {
-    choices.current = pickChoices(state.questions[state.current], stage.words);
-    const adaptiveTime = getAdaptiveTimeLimit(state.recentResults);
-    setTimeLeft(adaptiveTime);
+    lockRef.current = false;
+    setTimeLeft(getAdaptiveTimeLimit(state.recentResults));
     setFeedback(null);
+    setPicked(null);
   }, [state.current]);
 
+  // カウントダウン（タイムチャレンジのみ）。0になったら「じかんぎれ」として1回だけ処理する
   useEffect(() => {
-    if (state.isReviewMode) return; // no timer in review mode
-    timerRef.current = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) { handleAnswer(null); return 15; }
-        return t - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timerRef.current);
-  }, [state.current, state.isReviewMode]);
+    if (!timed || feedback) return;
+    if (timeLeft <= 0) { handleAnswer(null); return; }
+    const t = setTimeout(() => setTimeLeft((v) => v - 1), 1000);
+    return () => clearTimeout(t);
+  }, [timed, feedback, timeLeft, state.current]);
+
+  useEffect(() => () => {
+    clearTimeout(advanceTimerRef.current);
+    clearTimeout(comboTimerRef.current);
+  }, []);
 
   // Combo milestone labels
   const COMBO_MILESTONES = { 3: "NICE! 🎯", 5: "GREAT! 🔥", 7: "AMAZING! ⚡", 10: "UNSTOPPABLE! 💥" };
 
   const handleAnswer = (selected) => {
-    clearInterval(timerRef.current);
+    if (lockRef.current) return;
+    lockRef.current = true;
+    const timedOut = selected === null;
     const correct = selected === q.en;
-    const newCombo = correct ? state.combo + 1 : 0;
-    setFeedback(correct ? "correct" : "wrong");
+    setPicked(selected);
+    setFeedback(correct ? "correct" : timedOut ? "timeout" : "wrong");
 
     // Sound effects
-    if (correct) {
-      playCorrectSound();
-    } else {
-      playWrongSound();
-    }
+    if (correct) playCorrectSound(); else playWrongSound();
     // TTS — speak the correct English word
     speakEnglish(q.en);
 
+    // ふくしゅう: まちがえたら こたえを見せて、おなじもんだいをもういちど
+    if (state.isReviewMode && !correct) {
+      if (!(q.en in firstMissRef.current)) firstMissRef.current[q.en] = selected;
+      advanceTimerRef.current = setTimeout(() => {
+        setFeedback(null);
+        setPicked(null);
+        lockRef.current = false;
+      }, 1200);
+      return;
+    }
+
+    // ふくしゅうでは「1回目でせいかい」だけをせいかいに数える
+    const missedFirst = state.isReviewMode && (q.en in firstMissRef.current);
+    const counted = correct && !missedFirst;
+    const newCombo = counted ? state.combo + 1 : 0;
+
     // Combo milestone celebration
-    if (correct && COMBO_MILESTONES[newCombo]) {
+    if (counted && COMBO_MILESTONES[newCombo]) {
       clearTimeout(comboTimerRef.current);
       setComboMilestone(COMBO_MILESTONES[newCombo]);
       comboTimerRef.current = setTimeout(() => setComboMilestone(null), 1500);
     }
 
-    // In review mode, if wrong, don't advance — let them try again
-    if (state.isReviewMode && !correct) {
-      setTimeout(() => {
-        setFeedback(null);
-      }, 800);
-      return;
-    }
+    const entry = {
+      word: q,
+      selected: missedFirst ? firstMissRef.current[q.en] : selected,
+      correct: counted,
+      timedOut: !missedFirst && timedOut,
+    };
+    const updatedRecent = [...(state.recentResults || []), counted].slice(-5);
+    // まちがえたときは こたえをよむ時間をとる（れんしゅうは長め）
+    const delay = correct ? 700 : timed ? 1300 : 2000;
 
-    const updatedRecent = [...(state.recentResults || []), correct].slice(-5);
-
-    setTimeout(() => {
+    advanceTimerRef.current = setTimeout(() => {
       const next = state.current + 1;
+      const allAnswers = [...state.answers, entry];
       if (next >= state.questions.length) {
         onFinish({
           mode: "solo",
-          score: state.score + (correct ? 1 : 0),
+          modeKey: state.modeKey,
+          timed,
+          score: allAnswers.filter((a) => a.correct).length,
           total: state.questions.length,
           maxCombo: Math.max(state.maxCombo, newCombo),
-          mistakes: correct ? state.answers.filter((a) => !a.correct) : [...state.answers.filter((a) => !a.correct), { word: q, selected }],
+          mistakes: allAnswers.filter((a) => !a.correct).map((a) => ({ word: a.word, selected: a.selected, timedOut: a.timedOut })),
           time: ((Date.now() - state.startTime) / 1000).toFixed(1),
           isReviewMode: state.isReviewMode,
         });
@@ -688,18 +863,19 @@ function SoloGame({ state, setState, stage, onFinish }) {
         setState((s) => ({
           ...s,
           current: next,
-          score: s.score + (correct ? 1 : 0),
+          score: s.score + (counted ? 1 : 0),
           combo: newCombo,
           maxCombo: Math.max(s.maxCombo, newCombo),
-          answers: [...s.answers, { word: q, selected, correct }],
+          answers: allAnswers,
           recentResults: updatedRecent,
         }));
       }
-    }, 600);
+    }, delay);
   };
 
-  const currentQ = state.questions[state.current];
   const pct = ((state.current) / state.questions.length) * 100;
+  const showAnswer = !!feedback;
+  const jaSize = q.ja.length > 12 ? 22 : q.ja.length > 7 ? 28 : 36;
 
   return (
     <div style={{
@@ -708,22 +884,26 @@ function SoloGame({ state, setState, stage, onFinish }) {
     }}>
       {/* Header */}
       <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 11, color: "#555" }}>{stage.label}</span>
+        <span style={{ fontSize: 11, color: "#777" }}>
+          {stage.label} ・ {state.isReviewMode ? "🔄 ふくしゅう" : timed ? "⏱️ タイムチャレンジ" : "📖 れんしゅう"}
+        </span>
         <span style={{ fontSize: 13, color: "#FFD93D", fontWeight: 800 }}>{state.current + 1}/{state.questions.length}</span>
       </div>
       {/* Progress */}
       <div style={{ height: 4, background: "#111", margin: "0 16px", borderRadius: 2 }}>
         <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg, #4ECDC4, #FFD93D)", borderRadius: 2, transition: "width 0.3s" }} />
       </div>
-      {/* Timer (hidden in review mode) */}
-      {!state.isReviewMode && (
+      {/* Timer (タイムチャレンジのみ) */}
+      {timed && (
         <div style={{ height: 3, background: "#111", margin: "4px 16px 0", borderRadius: 2 }}>
-          <div style={{ height: "100%", width: `${(timeLeft / getAdaptiveTimeLimit(state.recentResults)) * 100}%`, background: timeLeft <= 5 ? "#FF6B6B" : "#6C5CE7", borderRadius: 2, transition: "width 1s linear" }} />
+          <div style={{ height: "100%", width: `${Math.max(0, Math.min(1, timeLeft / timeLimit)) * 100}%`, background: timeLeft <= 5 ? "#FF6B6B" : "#6C5CE7", borderRadius: 2, transition: "width 1s linear" }} />
         </div>
       )}
-      {state.isReviewMode && (
-        <div style={{ textAlign: "center", fontSize: 10, color: "#6C5CE7", fontWeight: 700, marginTop: 4 }}>
-          復習モード — タイマーなし・何度でもチャレンジ
+      {!timed && (
+        <div style={{ textAlign: "center", fontSize: 11, color: "#7d6ff0", fontWeight: 700, marginTop: 6 }}>
+          {state.isReviewMode
+            ? "ふくしゅう — じかんせいげん なし・せいかいするまで チャレンジ"
+            : "じかんせいげん なし — ゆっくり かんがえて いいよ"}
         </div>
       )}
 
@@ -748,42 +928,55 @@ function SoloGame({ state, setState, stage, onFinish }) {
       {/* Question area */}
       <div style={{
         flex: 1, display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", gap: 16, padding: 20,
+        alignItems: "center", justifyContent: "center", gap: 12, padding: 20,
       }}>
         {state.combo >= 2 && (
           <div style={{ fontSize: 12, color: "#FFD93D", fontWeight: 800, animation: "popIn 0.3s ease" }}>
             🔥 x{state.combo} COMBO!
           </div>
         )}
-        <div style={{ fontSize: 11, color: "#5a5a8a", letterSpacing: 1 }}>にほんごをみて えいたんごをえらぼう</div>
+        <div style={{ fontSize: 12, color: "#8a8ab0", letterSpacing: 1 }}>にほんごを みて えいたんごを えらぼう</div>
         <div style={{
-          fontSize: 36, fontWeight: 900, color: "#fff", textAlign: "center",
-          padding: "20px 32px", borderRadius: 20,
+          color: "#fff", textAlign: "center",
+          padding: "16px 28px", borderRadius: 20,
           background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-          animation: feedback === "correct" ? "popIn 0.3s ease" : feedback === "wrong" ? "shake 0.3s ease" : "fadeIn 0.3s ease",
-          boxShadow: feedback === "correct" ? "0 0 30px rgba(78,205,196,0.3)" : feedback === "wrong" ? "0 0 30px rgba(255,107,107,0.3)" : "none",
+          animation: feedback === "correct" ? "popIn 0.3s ease" : feedback ? "shake 0.3s ease" : "fadeIn 0.3s ease",
+          boxShadow: feedback === "correct" ? "0 0 30px rgba(78,205,196,0.3)" : feedback ? "0 0 30px rgba(255,107,107,0.3)" : "none",
         }}>
-          {currentQ.ja}
+          {q.em && <div style={{ fontSize: 44, lineHeight: 1.2 }} aria-hidden="true">{q.em}</div>}
+          <div style={{ fontSize: jaSize, fontWeight: 900, lineHeight: 1.3 }}>{q.ja}</div>
+        </div>
+        {/* Feedback line: こたえを はっきり見せる */}
+        <div style={{ minHeight: 24, fontSize: 15, fontWeight: 800, textAlign: "center",
+          color: feedback === "correct" ? "#4ECDC4" : "#FF9F9F" }}>
+          {feedback === "correct" && <>⭕ せいかい！ <b>{q.en}</b></>}
+          {feedback === "wrong" && <>こたえは <b style={{ color: "#4ECDC4" }}>{q.en}</b> だよ</>}
+          {feedback === "timeout" && <>⏰ じかんぎれ！ こたえは <b style={{ color: "#4ECDC4" }}>{q.en}</b></>}
         </div>
 
         {/* Choices */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 360, marginTop: 12 }}>
-          {choices.current.map((c, i) => (
-            <button key={c.en + i} className="btn" disabled={!!feedback} onClick={() => handleAnswer(c.en)} style={{
-              padding: "14px 20px", borderRadius: 16, border: "none", cursor: feedback ? "default" : "pointer",
-              background: feedback && c.en === q.en ? "rgba(78,205,196,0.2)"
-                : feedback && c.en !== q.en ? "rgba(255,255,255,0.02)"
-                : "rgba(255,255,255,0.04)",
-              borderLeft: feedback && c.en === q.en ? "4px solid #4ECDC4" : "4px solid transparent",
-              fontSize: 20, fontWeight: 800, color: feedback && c.en === q.en ? "#4ECDC4" : "#888",
-              fontFamily: "'Nunito', sans-serif", textAlign: "center",
-              opacity: feedback && c.en !== q.en ? 0.4 : 1,
-              transition: "all 0.2s",
-              animation: `fadeIn 0.2s ease ${i * 0.05}s both`,
-            }}>
-              {c.en}
-            </button>
-          ))}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 360 }}>
+          {choices.map((c, i) => {
+            const isAnswer = showAnswer && c.en === q.en;
+            const isWrongPick = showAnswer && picked === c.en && c.en !== q.en;
+            return (
+              <button key={c.en + i} className="btn" disabled={showAnswer} onClick={() => handleAnswer(c.en)} style={{
+                padding: "14px 20px", borderRadius: 16, border: "none", cursor: showAnswer ? "default" : "pointer",
+                background: isAnswer ? "rgba(78,205,196,0.2)"
+                  : isWrongPick ? "rgba(255,107,107,0.18)"
+                  : showAnswer ? "rgba(255,255,255,0.02)"
+                  : "rgba(255,255,255,0.07)",
+                borderLeft: isAnswer ? "4px solid #4ECDC4" : isWrongPick ? "4px solid #FF6B6B" : "4px solid transparent",
+                fontSize: 22, fontWeight: 800, color: isAnswer ? "#4ECDC4" : isWrongPick ? "#FF6B6B" : "#d0d0e0",
+                fontFamily: "'Nunito', sans-serif", textAlign: "center",
+                opacity: showAnswer && !isAnswer && !isWrongPick ? 0.4 : 1,
+                transition: "all 0.2s",
+                animation: `fadeIn 0.2s ease ${i * 0.05}s both`,
+              }}>
+                {c.en}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -818,9 +1011,9 @@ function BattleGame({ state, setState, stage, onFinish }) {
     onFinish({
       mode: "battle",
       p1Score: s.p1.score, p2Score: s.p2.score,
-      p1Answered: s.p1.current, p2Answered: s.p2.current,
+      p1Answered: s.p1.answered, p2Answered: s.p2.answered,
       p1MaxCombo: s.p1.maxCombo, p2MaxCombo: s.p2.maxCombo,
-      total: Math.max(s.p1.current, s.p2.current),
+      total: Math.max(s.p1.answered, s.p2.answered),
       mistakes: uniqueMistakes,
     });
   }, [onFinish]);
@@ -857,6 +1050,7 @@ function BattleGame({ state, setState, stage, onFinish }) {
 
       const newP = { ...pState };
       newP.feedback = correct ? "correct" : "wrong";
+      newP.answered = (pState.answered || 0) + 1;
 
       // Sound effects
       if (correct) {
@@ -873,7 +1067,7 @@ function BattleGame({ state, setState, stage, onFinish }) {
         newP.maxCombo = Math.max(pState.maxCombo, newP.combo);
       } else {
         newP.combo = 0;
-        newP.mistakes = [...pState.mistakes, { word: q, player }];
+        newP.mistakes = [...pState.mistakes, { word: q, player, selected }];
       }
 
       // After brief feedback, advance to next question
@@ -956,7 +1150,7 @@ function BattleGame({ state, setState, stage, onFinish }) {
 
           {/* Japanese word question */}
           <div key={pState.current} style={{
-            fontSize: Math.min(28, Math.max(18, 200 / q.ja.length)), fontWeight: 900, color: "#fff",
+            fontSize: Math.min(26, Math.max(14, 170 / q.ja.length)), fontWeight: 900, color: "#fff", lineHeight: 1.3,
             padding: "10px 16px", borderRadius: 14,
             background: pState.feedback === "correct" ? `${colorA}20`
               : pState.feedback === "wrong" ? "rgba(255,70,70,0.15)"
@@ -969,7 +1163,7 @@ function BattleGame({ state, setState, stage, onFinish }) {
               : pState.feedback === "wrong" ? "shake 0.3s ease"
               : "fadeIn 0.15s ease",
           }}>
-            {q.ja}
+            {q.em && <span aria-hidden="true">{q.em} </span>}{q.ja}
           </div>
 
           {/* Answer feedback flash */}
@@ -995,7 +1189,7 @@ function BattleGame({ state, setState, stage, onFinish }) {
                     : pState.feedback ? "rgba(255,255,255,0.02)"
                     : "rgba(255,255,255,0.05)",
                   fontSize: 16, fontWeight: 800,
-                  color: pState.feedback && c.en === q.en ? colorA : "#666",
+                  color: pState.feedback && c.en === q.en ? colorA : "#c0c0d0",
                   fontFamily: "'Nunito', sans-serif", textAlign: "center",
                   opacity: pState.feedback && c.en !== q.en ? 0.3 : 1,
                   transition: "all 0.15s",
@@ -1066,20 +1260,29 @@ function ResultScreen({ results, mode, stageId, onRetry, onHome, onReview }) {
     setWrongHistory(loadWrongAnswers().filter(w => w.stageId === stageId));
   }, [stageId]);
 
+  const mistakes = results.mistakes || [];
+  const timeoutCount = mistakes.filter((m) => m.timedOut).length;
+  const wrongCount = mistakes.length - timeoutCount;
+  // 紙ふぶきの位置はマウント時に1回だけ決める
+  const confetti = useMemo(() => [...Array(30)].map((_, i) => ({
+    size: 6 + Math.random() * 10, size2: 6 + Math.random() * 10, left: 5 + Math.random() * 90,
+    dur: 2 + Math.random() * 3, delay: Math.random() * 2,
+  })), []);
+
   return (
     <div style={{
       height: "100vh", display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center", gap: 12, padding: 24,
+      alignItems: "center", justifyContent: "center", gap: 10, padding: "16px 24px",
       background: "radial-gradient(ellipse at 50% 30%, #1e1245 0%, #0a0a14 70%)",
-      position: "relative", overflow: "hidden",
+      position: "relative", overflow: "hidden auto", boxSizing: "border-box",
     }}>
       {/* Confetti */}
-      {[...Array(30)].map((_, i) => (
+      {confetti.map((c, i) => (
         <div key={i} style={{
-          position: "absolute", width: 6 + Math.random() * 10, height: 6 + Math.random() * 10,
+          position: "absolute", width: c.size, height: c.size2, pointerEvents: "none",
           background: STAGE_COLORS[i % 7], borderRadius: i % 3 === 0 ? "50%" : 2,
-          top: -20, left: `${5 + Math.random() * 90}%`,
-          animation: `confettiFall ${2 + Math.random() * 3}s ease ${Math.random() * 2}s both`,
+          top: -20, left: `${c.left}%`,
+          animation: `confettiFall ${c.dur}s ease ${c.delay}s both`,
         }} />
       ))}
 
@@ -1121,7 +1324,14 @@ function ResultScreen({ results, mode, stageId, onRetry, onHome, onReview }) {
           }}>
             {results.score}/{results.total} せいかい！
           </div>
-          <div style={{ fontSize: 12, color: "#555" }}>⏱ {results.time}s ・ 🔥 max x{results.maxCombo}</div>
+          <div style={{ fontSize: 11, color: "#8a8ab0", fontWeight: 700 }}>
+            {results.isReviewMode ? "🔄 ふくしゅう（1かいめで せいかいした かず）" : results.timed ? "⏱️ タイムチャレンジ" : "📖 れんしゅう"}
+          </div>
+          <div style={{ fontSize: 12, color: "#777" }}>
+            {results.timed && <>⏱ {results.time}s ・ </>}🔥 max x{results.maxCombo}
+            {mistakes.length > 0 && <> ・ ✕ まちがい {wrongCount}</>}
+            {timeoutCount > 0 && <> ・ ⏰ じかんぎれ {timeoutCount}</>}
+          </div>
           <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
             {[...Array(3)].map((_, i) => (
               <span key={i} style={{ fontSize: 24, opacity: results.score / results.total >= (i + 1) / 3 ? 1 : 0.2 }}>★</span>
@@ -1141,7 +1351,7 @@ function ResultScreen({ results, mode, stageId, onRetry, onHome, onReview }) {
               fontSize: 14, fontWeight: 800, marginTop: 8, color: "#FFD93D",
               textAlign: "center", animation: "fadeIn 0.5s ease",
             }}>
-              あと{results.total - results.score}問でパーフェクト！
+              あと{results.total - results.score}もんで パーフェクト！
             </div>
           )}
         </>
@@ -1155,12 +1365,12 @@ function ResultScreen({ results, mode, stageId, onRetry, onHome, onReview }) {
           border: "1px solid rgba(255,255,255,0.05)", maxHeight: 140, overflow: "auto",
         }}>
           <div style={{ fontSize: 11, color: "#6C5CE7", fontWeight: 800, marginBottom: 6 }}>
-            📝 まちがえた たんご
+            📝 もういちど みておこう
           </div>
           {results.mistakes.slice(0, 8).map((m, i) => (
             <div key={i} style={{ fontSize: 12, color: "#888", marginBottom: 4, display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ color: "#FF6B6B" }}>✕</span>
-              <span>{m.word.ja}</span>
+              <span style={{ color: "#FF6B6B" }}>{m.timedOut ? "⏰" : "✕"}</span>
+              <span>{m.word.em ? m.word.em + " " : ""}{m.word.ja}</span>
               <span>→</span>
               <span style={{ color: "#4ECDC4", fontWeight: 800 }}>{m.word.en}</span>
               <button onClick={() => speakEnglish(m.word.en)} style={{
@@ -1208,7 +1418,7 @@ function ResultScreen({ results, mode, stageId, onRetry, onHome, onReview }) {
           border: "2px solid #6C5CE7", background: "rgba(108,92,231,0.1)",
           color: "#6C5CE7", fontWeight: 900, fontSize: 14, cursor: "pointer",
           marginTop: 8, animation: "fadeIn 0.5s ease 0.3s both",
-        }}>🔄 苦手を復習</button>
+        }}>🔄 にがてを ふくしゅう（じかんせいげん なし）</button>
       )}
 
       {/* Buttons */}
@@ -1224,6 +1434,7 @@ function ResultScreen({ results, mode, stageId, onRetry, onHome, onReview }) {
           boxShadow: "0 4px 16px rgba(255,217,61,0.25)",
         }}>もういちど！🔥</button>
       </div>
+      <PortalLink style={{ marginTop: 4, flexShrink: 0 }} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 export const metadata = {
-  title: 'PHONICS BATTLE | フォニックス・バトル',
-  description: 'Elementary school English vocabulary battle game',
+  title: 'はじめての英単語バトル | WISE English',
+  description: '日本語を見て、合う英単語を4つから選ぶゲーム。時間制限なしの「れんしゅう」、タイムチャレンジ、2人たいせん。',
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
 };
 
