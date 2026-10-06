@@ -368,6 +368,9 @@ export default function PhonicsGame() {
   const stage = STAGES.find((s) => s.id === stageId);
 
   /* ── Solo game logic (practice = no timer / solo = timed) ── */
+  const [learnWords, setLearnWords] = useState(null);
+  const [pendingMode, setPendingMode] = useState(null);
+
   const startSolo = (sid, m) => {
     const s = STAGES.find((st) => st.id === sid);
     const questions = shuffle(s.words).slice(0, Math.min(qCount, s.words.length));
@@ -379,12 +382,20 @@ export default function PhonicsGame() {
       combo: 0,
       maxCombo: 0,
       answers: [],
-      recentResults: [], // last 5 answers for adaptive difficulty
+      recentResults: [],
       startTime: Date.now(),
       isReviewMode: false,
       timed: m === "solo",
       modeKey: m === "solo" ? "solo" : "practice",
     });
+    // 覚えるフェーズ: 出題される単語の最初の5語を見せる
+    setLearnWords(questions.slice(0, 5));
+    setPendingMode(m);
+    setScreen("learn");
+  };
+
+  const finishLearn = () => {
+    setGameState((s) => ({ ...s, startTime: Date.now() }));
     setScreen("solo");
   };
 
@@ -470,6 +481,9 @@ export default function PhonicsGame() {
       {screen === "ready" && stage && (
         <ReadyScreen stage={stage} mode={mode} count={Math.min(qCount, stage.words.length)}
           onStart={() => startGame(stageId, mode)} onBack={goHome} />
+      )}
+      {screen === "learn" && learnWords && (
+        <LearnPhase words={learnWords} onFinish={finishLearn} />
       )}
       {screen === "solo" && gameState && stage && (
         <SoloGame state={gameState} setState={setGameState} stage={stage}
@@ -750,6 +764,78 @@ function StageSelect({ mode, onSelect, onBack }) {
    ═══════════════════════════════════════════════════════ */
 const BASE_TIME = 15;
 
+/* ═══════════════════════════════════════════════════════
+   LEARN PHASE — 5語を1つずつ見て覚える（音声つき）
+   ═══════════════════════════════════════════════════════ */
+function LearnPhase({ words, onFinish }) {
+  const [idx, setIdx] = useState(0);
+  const word = words[idx];
+
+  useEffect(() => {
+    speakEnglish(word.en);
+  }, [idx, word.en]);
+
+  const next = () => {
+    if (idx + 1 >= words.length) {
+      onFinish();
+    } else {
+      setIdx(idx + 1);
+    }
+  };
+
+  return (
+    <div style={{
+      height: "100vh", display: "flex", flexDirection: "column",
+      background: "radial-gradient(ellipse at 50% 20%, #1e1245 0%, #0a0a14 70%)",
+      alignItems: "center", justifyContent: "center", gap: 20, padding: 20,
+    }}>
+      <div style={{ fontSize: 11, color: "#6C5CE7", fontWeight: 700, letterSpacing: 2 }}>
+        まず おぼえよう（{idx + 1} / {words.length}）
+      </div>
+
+      <div style={{
+        background: "rgba(255,255,255,0.06)", borderRadius: 24,
+        border: "1px solid rgba(255,255,255,0.1)",
+        padding: "40px 48px", textAlign: "center", minWidth: 280,
+      }}>
+        <div style={{ fontSize: 48, fontWeight: 900, color: "#4ECDC4", fontFamily: "'Nunito', sans-serif", marginBottom: 12 }}>
+          {word.en}
+        </div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: "#fff" }}>
+          {word.ja}
+        </div>
+      </div>
+
+      <button onClick={() => speakEnglish(word.en)} style={{
+        background: "rgba(108,92,231,0.3)", border: "1px solid rgba(108,92,231,0.5)",
+        borderRadius: 16, padding: "12px 24px", color: "#a8a0e0",
+        fontSize: 16, fontWeight: 700, cursor: "pointer",
+      }}>
+        🔊 もういちど きく
+      </button>
+
+      <button onClick={next} className="btn" style={{
+        background: "linear-gradient(135deg, #6C5CE7, #a29bfe)",
+        border: "none", borderRadius: 20, padding: "16px 48px",
+        color: "#fff", fontSize: 20, fontWeight: 900, cursor: "pointer",
+        boxShadow: "0 4px 20px rgba(108,92,231,0.4)",
+      }}>
+        {idx + 1 >= words.length ? "はじめる！ ▶" : "つぎへ →"}
+      </button>
+
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        {words.map((_, i) => (
+          <div key={i} style={{
+            width: 10, height: 10, borderRadius: "50%",
+            background: i <= idx ? "#6C5CE7" : "rgba(255,255,255,0.15)",
+            transition: "background 0.3s",
+          }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SoloGame({ state, setState, stage, onFinish }) {
   const timed = !!state.timed && !state.isReviewMode;
   const [feedback, setFeedback] = useState(null); // "correct" | "wrong" | "timeout"
@@ -845,15 +931,21 @@ function SoloGame({ state, setState, stage, onFinish }) {
     const delay = correct ? 700 : timed ? 1300 : 2000;
 
     advanceTimerRef.current = setTimeout(() => {
+      // 間違えた問題をキューの末尾に追加（1回だけ再出題）
+      let updatedQuestions = state.questions;
+      if (!correct && !q._retry) {
+        updatedQuestions = [...state.questions, { ...q, _retry: true }];
+      }
+
       const next = state.current + 1;
       const allAnswers = [...state.answers, entry];
-      if (next >= state.questions.length) {
+      if (next >= updatedQuestions.length) {
         onFinish({
           mode: "solo",
           modeKey: state.modeKey,
           timed,
           score: allAnswers.filter((a) => a.correct).length,
-          total: state.questions.length,
+          total: updatedQuestions.length,
           maxCombo: Math.max(state.maxCombo, newCombo),
           mistakes: allAnswers.filter((a) => !a.correct).map((a) => ({ word: a.word, selected: a.selected, timedOut: a.timedOut })),
           time: ((Date.now() - state.startTime) / 1000).toFixed(1),
@@ -862,6 +954,7 @@ function SoloGame({ state, setState, stage, onFinish }) {
       } else {
         setState((s) => ({
           ...s,
+          questions: updatedQuestions,
           current: next,
           score: s.score + (counted ? 1 : 0),
           combo: newCombo,
